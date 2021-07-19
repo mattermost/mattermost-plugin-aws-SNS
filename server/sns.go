@@ -72,14 +72,17 @@ type SNSRdsEventNotification struct {
 }
 
 type SNSCloudformationEventNotification struct {
-	StackID            string `json:"StackId"`
-	EventID            string `json:"EventId"`
-	StackName          string `json:"StackName"`
-	LogicalResourceID  string `json:"LogicalResourceId"`
-	PhysicalResourceID string `json:"PhysicalResourceId"`
-	ResourceType       string `json:"ResourceType"`
-	Timestamp          string `json:"Timestamp"`
-	ResourceStatus     string `json:"ResourceStatus"`
-	ResourceProperties string `json:"ResourceProperties"`
-	ClientRequestToken string `json:"ClientRequestToken"`
+	StackID              string `json:"StackId"`
+	Timestamp            string `json:"Timestamp"`
+	EventID              string `json:"EventId"`
+	LogicalResourceID    string `json:"LogicalResourceId"`
+	Namespace            string `json:"Namespace"`
+	PhysicalResourceID   string `json:"PhysicalResourceId"`
+	PrincipalID          string `json:"PrincipalId"`
+	ResourceProperties   string `json:"ResourceProperties"`
+	ResourceStatus       string `json:"ResourceStatus"`
+	ResourceStatusReason string `json:"ResourceStatusReason"`
+	ResourceType         string `json:"ResourceType"`
+	StackName            string `json:"StackName"`
+	ClientRequestToken   string `json:"ClientRequestToken"`
 }

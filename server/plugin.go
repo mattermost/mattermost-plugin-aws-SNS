@@ -217,20 +217,27 @@ func (p *Plugin) isCloudformationEvent(message string) (bool, SNSCloudformationE
 	var messageNotification SNSCloudformationEventNotification
 
 	// alter message in order to decode it in json format
-	isCorrectFormat, messagejson := p.messageToJSON(message)
+	messagejson, err := messageToJSON(message)
 
-	if !isCorrectFormat {
-		return false, messageNotification
-	}
-
-	if err := json.Unmarshal(messagejson, &messageNotification); err != nil {
+	if err != nil {
 		p.API.LogError(
 			"AWSSNS HandleNotification Decode Error on Cloudformation-Event message notification",
 			"err", err.Error(),
-			"message", messagejson)
+			"message", message)
 		return false, messageNotification
 	}
-	return len(messageNotification.EventID) > 0, messageNotification
+
+	if messagejson != nil {
+		if err := json.Unmarshal(messagejson, &messageNotification); err != nil {
+			p.API.LogError(
+				"AWSSNS HandleNotification Decode Error on Cloudformation-Event message notification",
+				"err", err.Error(),
+				"message", message)
+			return false, messageNotification
+		}
+		return len(messageNotification.EventID) > 0, messageNotification
+	}
+	return false, messageNotification
 }
 
 func (p *Plugin) createSNSRdsEventAttachment(subject string, messageNotification SNSRdsEventNotification) model.SlackAttachment {
@@ -541,27 +548,40 @@ func addFields(fields []*model.SlackAttachmentField, title, msg string, short bo
 	})
 }
 
-func (p *Plugin) messageToJSON(message string) (bool, []byte) {
+func messageToJSON(message string) ([]byte, error) {
 	messagefields := strings.Split(message, "\n")
 	if len(messagefields) > 0 {
+
+		// examine if the message refers to a cloudformation event by checking if StackId field is included in the first line
+		if strings.Split(messagefields[0], "=")[0] != "StackId" {
+			return nil, nil
+		}
+
+		var numOfFields int
+
+		// if "\n" existed at the end of the message, do not parse the last field
+		if messagefields[len(messagefields)-1] == "" {
+			numOfFields = len(messagefields) - 1
+		} else {
+			numOfFields = len(messagefields)
+		}
+
 		//split each line of the cloudformation event message to field and value
 		var fields = make(map[string]string)
-		for _, field := range messagefields[:len(messagefields)-1] {
+		for _, field := range messagefields[:numOfFields] {
 			parts := strings.Split(field, "=")
-			if len(parts) == 2 {
+			if len(parts) == 2 && parts[1] != "" {
 				fields[parts[0]] = parts[1]
 			} else {
-				return false, nil
+				return nil, errors.New("Format of message fields is incorrect")
 			}
 		}
 
 		jsonmessage, err := json.Marshal(fields)
 		if err != nil {
-			p.API.LogError("Error marshaling in messageToJSON", "err", err.Error())
-			return false, nil
+			return nil, errors.Wrap(err, "Error marshaling in messageToJSON")
 		}
-
-		return true, jsonmessage
+		return jsonmessage, nil
 	}
-	return false, nil
+	return nil, errors.New("No message fields present in message string")
 }
